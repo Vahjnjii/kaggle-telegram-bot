@@ -1,5 +1,5 @@
 """
-🤖 Kaggle Telegram Bot - Render.com Deployment
+🤖 Kaggle Telegram Bot - Render.com (FIXED VERSION)
 Runs 24/7 on Render cloud servers
 """
 
@@ -277,9 +277,14 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def health_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Health check endpoint"""
-    await update.message.reply_text("✅ Bot is healthy!")
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Handle errors"""
+    logger.error(f"Exception: {context.error}")
+
+
+async def post_init(application: Application):
+    """Post init callback"""
+    logger.info("✅ Bot initialized")
 
 
 def main():
@@ -297,11 +302,18 @@ def main():
     logger.info(f"☁️ Render.com")
     
     try:
-        app = Application.builder().token(TELEGRAM_TOKEN).build()
+        # Build application with proper configuration
+        application = (
+            Application.builder()
+            .token(TELEGRAM_TOKEN)
+            .post_init(post_init)
+            .build()
+        )
         
-        app.add_handler(CommandHandler("start", start_cmd))
-        app.add_handler(CommandHandler("health", health_check))
-        app.add_handler(CallbackQueryHandler(button_click))
+        # Add handlers
+        application.add_handler(CommandHandler("start", start_cmd))
+        application.add_handler(CallbackQueryHandler(button_click))
+        application.add_error_handler(error_handler)
         
         logger.info("="*60)
         logger.info("✅ BOT RUNNING 24/7!")
@@ -309,14 +321,18 @@ def main():
         logger.info("📱 @vathsas_bot")
         logger.info("="*60)
         
-        # Keep alive for Render
-        app.run_polling(
+        # Run with proper settings
+        application.run_polling(
+            poll_interval=1.0,
+            timeout=10,
             drop_pending_updates=True,
             allowed_updates=Update.ALL_TYPES
         )
         
     except Exception as e:
         logger.error(f"❌ Error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
 
 if __name__ == '__main__':
